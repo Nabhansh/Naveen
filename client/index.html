@@ -1,4 +1,6 @@
-<!doctype html>
+from pathlib import Path
+
+html = r'''<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -26,18 +28,89 @@
       #splash-screen .splash-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(0,0,0,.75),rgba(0,0,0,.35) 50%,rgba(0,0,0,.6)); }
       #splash-screen .splash-brand { position:relative; z-index:1; font-family:'Cormorant Garamond',Georgia,serif; font-size:1.5rem; letter-spacing:.25em; font-weight:600; color:#fff; margin-bottom:.75rem; text-shadow:0 2px 12px rgba(0,0,0,.5); text-align:center; }
       #splash-screen .splash-bar { position:relative; z-index:1; width:40px; height:2px; background:#c85a32; animation:pulse 1.2s infinite ease-in-out; }
+      #audio-toggle { position:fixed; right:20px; bottom:20px; z-index:10000; width:42px; height:42px; border:1px solid rgba(255,255,255,.35); border-radius:50%; background:rgba(20,20,20,.65); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; backdrop-filter:blur(8px); opacity:0; pointer-events:none; transition:opacity .3s ease, transform .2s ease; }
+      #audio-toggle.visible { opacity:1; pointer-events:auto; }
+      #audio-toggle:hover { transform:scale(1.06); }
       @keyframes splash-fade-out { to { opacity:0; visibility:hidden; pointer-events:none; } }
       @keyframes pulse { 0%,100% { opacity:.3; transform:scaleX(.7); } 50% { opacity:1; transform:scaleX(1.3); } }
     </style>
   </head>
   <body>
+    <audio id="background-audio" src="/audio/background.mp3" loop preload="auto"></audio>
+
     <div id="splash-screen">
       <video class="splash-video" src="/videos/hero-sanwariya.mp4" autoplay muted loop playsinline preload="auto"></video>
       <div class="splash-overlay"></div>
       <div class="splash-brand">SANWARIYA INTERIORS AND WALLPAPERS</div>
       <div class="splash-bar"></div>
     </div>
+
+    <button id="audio-toggle" type="button" aria-label="Enable background music" aria-pressed="false">🔇</button>
+
     <div id="root"></div>
+
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (() => {
+        const audio = document.getElementById('background-audio');
+        const toggle = document.getElementById('audio-toggle');
+
+        if (!audio || !toggle) return;
+
+        const setState = (playing) => {
+          toggle.textContent = playing ? '🔊' : '🔇';
+          toggle.setAttribute('aria-label', playing ? 'Mute background music' : 'Enable background music');
+          toggle.setAttribute('aria-pressed', String(playing));
+        };
+
+        const showToggle = () => toggle.classList.add('visible');
+
+        const startAudio = () => {
+          audio.volume = 0.22;
+          audio.play().then(() => {
+            setState(true);
+            showToggle();
+            document.removeEventListener('click', startAudio);
+            document.removeEventListener('pointerdown', startAudio);
+            document.removeEventListener('keydown', startAudio);
+            document.removeEventListener('touchstart', startAudio);
+          }).catch(() => {
+            showToggle();
+          });
+        };
+
+        toggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (audio.paused) {
+            audio.volume = 0.22;
+            audio.play().then(() => setState(true)).catch(() => setState(false));
+          } else {
+            audio.pause();
+            setState(false);
+          }
+        });
+
+        // Browsers commonly block autoplay with sound. Start on the first user interaction.
+        document.addEventListener('click', startAudio, { once: true });
+        document.addEventListener('pointerdown', startAudio, { once: true });
+        document.addEventListener('keydown', startAudio, { once: true });
+        document.addEventListener('touchstart', startAudio, { once: true });
+
+        // If autoplay with sound is permitted, start immediately.
+        audio.volume = 0.22;
+        audio.play().then(() => {
+          setState(true);
+          showToggle();
+        }).catch(() => {
+          showToggle();
+          setState(false);
+        });
+      })();
+    </script>
   </body>
 </html>
+'''
+
+out = Path("/mnt/data/index.html")
+out.write_text(html, encoding="utf-8")
+print(f"Created: {out}")
